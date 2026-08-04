@@ -1,0 +1,13 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { prisma } from "@/lib/db/client";
+import { getCurrentOrganizationId } from "@/lib/db/tenant";
+import { requireLocalAuth } from "@/lib/local-auth-middleware";
+async function store(userId: string) { const organizationId = await getCurrentOrganizationId(userId); const rows = await prisma.$queryRawUnsafe<Array<{ config: unknown }>>("SELECT config FROM app_settings WHERE organization_id = ? LIMIT 1", organizationId); const config = rows[0]?.config && typeof rows[0].config === "object" ? rows[0].config as Record<string, unknown> : {}; return { organizationId, config, items: Array.isArray(config.cadenceVariants) ? config.cadenceVariants as any[] : [] }; }
+async function save(organizationId: string, config: Record<string, unknown>, items: any[]) { await prisma.$executeRawUnsafe("INSERT INTO app_settings (organization_id, config) VALUES (?, CAST(? AS JSON)) ON DUPLICATE KEY UPDATE config = VALUES(config)", organizationId, JSON.stringify({ ...config, cadenceVariants: items })); }
+const schema = z.object({ id: z.string().optional(), cadence_day: z.number(), channel: z.enum(["whatsapp", "email"]), variant_key: z.string(), subject: z.string().nullable().optional(), body_template: z.string().min(1), weight: z.number(), active: z.boolean() });
+export const listVariants = createServerFn({ method: "GET" }).middleware([requireLocalAuth]).handler(async ({ context }) => ({ items: (await store(context.userId)).items }));
+export const upsertVariant = createServerFn({ method: "POST" }).middleware([requireLocalAuth]).validator((input: any) => schema.parse(input)).handler(async ({ data, context }) => { const state = await store(context.userId); const item = { ...data, id: data.id ?? crypto.randomUUID(), sent_count: 0, reply_count: 0, positive_count: 0 }; const items = data.id ? state.items.map((value) => value.id === data.id ? { ...value, ...item } : value) : [...state.items, item]; await save(state.organizationId, state.config, items); return { ok: true }; });
+export const deleteVariant = createServerFn({ method: "POST" }).middleware([requireLocalAuth]).validator((input: { id: string }) => z.object({ id: z.string() }).parse(input)).handler(async ({ data, context }) => { const state = await store(context.userId); await save(state.organizationId, state.config, state.items.filter((item) => item.id !== data.id)); return { ok: true }; });
+export const variantPerformance = listVariants;
+export const pickCadenceVariant = createServerFn({ method: "POST" }).middleware([requireLocalAuth]).handler(async () => ({ variant: null }));

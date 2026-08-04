@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppRole {
+  admin
+  gerente
+  sdr
+  comercial
+  superadmin
+}
+
+enum LeadStatus {
+  coletado
+  enriquecido
+  em_cadencia
+  qualificado
+  reuniao
+  convertido
+  descartado
+  inbound_new
+  inbound_in_progress
+  inbound_qualified
+  support_requested
+  finance_requested
+  needs_human
+  human_assigned
+  inbound_closed
+}
+
+model Organization {
+  id        String    @id @default(uuid()) @db.Char(36)
+  name      String    @db.VarChar(255)
+  slug      String    @unique @db.VarChar(191)
+  plan      String?   @db.VarChar(64)
+  status    String    @default("active") @db.VarChar(64)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  profiles  Profile[]
+  leads     Lead[]
+  settings  AppSettings?
+
+  @@map("organizations")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Char(36)
+  email        String    @unique @db.VarChar(191)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  profile      Profile?
+  roles        UserRole[]
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Profile {
+  id             String        @id @db.Char(36)
+  name           String        @db.VarChar(255)
+  email          String        @db.VarChar(191)
+  organizationId String?       @map("organization_id") @db.Char(36)
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  user           User          @relation(fields: [id], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@map("profiles")
+}
+
+model UserRole {
+  id        String  @id @default(uuid()) @db.Char(36)
+  userId    String  @map("user_id") @db.Char(36)
+  role      AppRole @default(sdr)
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @map("user_id") @db.Char(36)
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model AppSettings {
+  organizationId String       @id @map("organization_id") @db.Char(36)
+  icpSegmentos   Json?        @map("icp_segmentos")
+  icpCidades     Json?        @map("icp_cidades")
+  config         Json?        @map("config")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("app_settings")
+}
+
+model Lead {
+  id             String       @id @default(uuid()) @db.Char(36)
+  organizationId String       @map("organization_id") @db.Char(36)
+  ownerId        String?      @map("owner_id") @db.Char(36)
+  razaoSocial    String?      @map("razao_social") @db.Text
+  nomeFantasia   String?      @map("nome_fantasia") @db.Text
+  cnpj           String?      @db.VarChar(32)
+  email          String?      @db.VarChar(191)
+  telefone       String?      @db.VarChar(64)
+  whatsapp       String?      @db.VarChar(64)
+  site           String?      @db.VarChar(512)
+  cidade         String?      @db.VarChar(128)
+  estado         String?      @db.VarChar(64)
+  segmento       String?      @db.VarChar(128)
+  agentId        String?      @map("agent_id") @db.Char(36)
+  notes          String?      @db.Text
+  status         LeadStatus   @default(coletado)
+  score          Int          @default(0)
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status])
+  @@map("leads")
+}
+
+model KnowledgeSource {
+  id             String       @id @default(uuid()) @db.Char(36)
+  organizationId String       @map("organization_id") @db.Char(36)
+  title          String       @db.VarChar(255)
+  description    String?      @db.Text
+  sourceType     String       @map("source_type") @db.VarChar(64)
+  status         String       @default("pending") @db.VarChar(64)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  chunks         KnowledgeChunk[]
+
+  @@index([organizationId])
+  @@map("knowledge_sources")
+}
+
+model KnowledgeChunk {
+  id             String          @id @default(uuid()) @db.Char(36)
+  organizationId String          @map("organization_id") @db.Char(36)
+  sourceId       String          @map("source_id") @db.Char(36)
+  chunkIndex     Int             @map("chunk_index")
+  chunkText      String          @map("chunk_text") @db.LongText
+  embedding      Json            // Vetor 1536D: similaridade de cosseno na aplicação.
+  metadata       Json?
+  tokenCount     Int?            @map("token_count")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  source         KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, chunkIndex])
+  @@index([organizationId, sourceId])
+  @@map("knowledge_chunks")
+}

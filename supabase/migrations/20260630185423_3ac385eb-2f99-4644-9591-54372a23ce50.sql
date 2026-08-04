@@ -1,0 +1,2 @@
+ALTER TABLE public.meetings_v2 DROP CONSTRAINT IF EXISTS meetings_v2_created_via_check;
+ALTER TABLE public.meetings_v2 ADD CONSTRAINT meetings_v2_created_via_check CHECK (created_via = ANY (ARRAY['agent','manual','sync','whatsapp_agent','whatsapp_agent_freeform','voice_agent','api']));

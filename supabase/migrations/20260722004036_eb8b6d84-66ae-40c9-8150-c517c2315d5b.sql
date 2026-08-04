@@ -1,0 +1,1 @@
+UPDATE public.app_settings SET tenant_provider_settings_enabled = true WHERE organization_id IN (SELECT id FROM public.organizations WHERE slug = 'jcs');

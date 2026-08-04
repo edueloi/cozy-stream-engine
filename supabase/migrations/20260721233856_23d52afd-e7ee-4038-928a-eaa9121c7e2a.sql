@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS organizations_seed_product_catalog ON public.organizations;

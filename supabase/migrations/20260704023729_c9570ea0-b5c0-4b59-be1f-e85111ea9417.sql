@@ -1,0 +1,20 @@
+
+ALTER TABLE public.leads
+  ADD COLUMN IF NOT EXISTS qual_computers_count integer,
+  ADD COLUMN IF NOT EXISTS qual_has_internal_it boolean,
+  ADD COLUMN IF NOT EXISTS qual_has_outsourced_it boolean,
+  ADD COLUMN IF NOT EXISTS qual_main_pain text,
+  ADD COLUMN IF NOT EXISTS qual_decision_maker text,
+  ADD COLUMN IF NOT EXISTS qual_decision_role text,
+  ADD COLUMN IF NOT EXISTS qual_interest text,
+  ADD COLUMN IF NOT EXISTS qual_urgency text,
+  ADD COLUMN IF NOT EXISTS qual_estimated_budget text,
+  ADD COLUMN IF NOT EXISTS qual_next_step text,
+  ADD COLUMN IF NOT EXISTS qual_seller_notes text,
+  ADD COLUMN IF NOT EXISTS qual_manual_score integer,
+  ADD COLUMN IF NOT EXISTS qual_status text DEFAULT 'nao_qualificado',
+  ADD COLUMN IF NOT EXISTS qual_lost_reason text,
+  ADD COLUMN IF NOT EXISTS qual_updated_by text,
+  ADD COLUMN IF NOT EXISTS qual_updated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS qual_ai_touched boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS qual_human_touched boolean DEFAULT false;
