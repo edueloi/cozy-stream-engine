@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
+    "start": "node scripts/node-server.mjs",
+    "db:migrate": "prisma migrate deploy",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
