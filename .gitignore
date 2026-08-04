@@ -21,6 +21,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Credenciais de skills locais (nunca commitar)
+.claude/skills/*/credentials.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
