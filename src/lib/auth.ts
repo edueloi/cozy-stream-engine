@@ -1,11 +1,16 @@
-import { getCurrentUser, signInEmail as signInLocal, signOut as signOutLocal } from "@/lib/local-auth";
+import {
+  getCurrentUser,
+  signInEmail as signInLocal,
+  signOut as signOutLocal,
+  signUpEmail as signUpLocal,
+} from "@/lib/local-auth";
 
 export async function signInEmail(email: string, password: string) {
   await signInLocal(email, password);
 }
 
-export async function signUpEmail(_email: string, _password: string, _name: string) {
-  throw new Error("Criação de contas será habilitada após a migração completa de usuários para MySQL.");
+export async function signUpEmail(email: string, password: string, name: string, companyName: string) {
+  await signUpLocal(email, password, name, companyName);
 }
 
 export async function signOut() {

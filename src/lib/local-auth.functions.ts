@@ -29,6 +29,61 @@ export const localSignIn = createServerFn({ method: "POST" })
     return { token: await issueToken(user.id, user.email, roles), user: { id: user.id, email: user.email, name: user.profile?.name ?? user.email, roles } };
   });
 
+function slugify(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+async function uniqueOrganizationSlug(companyName: string) {
+  const base = slugify(companyName) || "empresa";
+  let slug = base;
+  let suffix = 1;
+  while (await prisma.organization.findUnique({ where: { slug } })) {
+    suffix += 1;
+    slug = `${base}-${suffix}`;
+  }
+  return slug;
+}
+
+export const localSignUp = createServerFn({ method: "POST" })
+  .validator((input: { email: string; password: string; name: string; companyName: string }) =>
+    z
+      .object({
+        email: z.string().email(),
+        password: z.string().min(6),
+        name: z.string().min(1),
+        companyName: z.string().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const email = data.email.trim().toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw new Error("Já existe uma conta com este e-mail.");
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    const slug = await uniqueOrganizationSlug(data.companyName);
+
+    const user = await prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: { name: data.companyName.trim(), slug, status: "active" },
+      });
+      const createdUser = await tx.user.create({ data: { email, passwordHash } });
+      await tx.profile.create({
+        data: { id: createdUser.id, name: data.name.trim(), email, organizationId: organization.id },
+      });
+      await tx.userRole.create({ data: { userId: createdUser.id, role: "admin" } });
+      return createdUser;
+    });
+
+    const roles = ["admin"];
+    return { token: await issueToken(user.id, user.email, roles), user: { id: user.id, email: user.email, name: data.name.trim(), roles } };
+  });
+
 export async function getLocalSession(token: string) {
   const { payload } = await jwtVerify(token, secret);
   if (!payload.sub || typeof payload.email !== "string") throw new Error("Sessão inválida.");
